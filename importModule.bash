@@ -32,7 +32,9 @@ FILETYPES=".sv .vh"
 shopt -s globstar
 
 for t in $FILETYPES; do
-    # Yikes. This has been a learning experience in bash. The first line should re-create the directory tree necessary to copy all the targetted files over to SoCET_OpenSource
+    # Yikes. This has been a learning experience in bash.
+    # The first line should re-create the directory tree necessary to copy all the targetted files over to SoCET_OpenSource
     find ~/SoCET_Public/$1/ -name *$t | sed -e "s/^.*SoCET_Public//" | xargs -I '{}' dirname .'{}' | xargs -I '{}' mkdir -p '{}'
+    # The second line acutally copies over the files
     find ~/SoCET_Public/$1/ -name *$t | sed -e "s/^.*SoCET_Public//" | xargs -I '{}' cp ~/SoCET_Public'{}' .'{}'
 done

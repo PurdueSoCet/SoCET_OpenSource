@@ -27,21 +27,6 @@ shopt -s globstar
 # extglob is needed to exclude RISCVBusiness from the search
 shopt -s extglob
 
-# TODO: Write code that will copy over files from SoCET_Public to SoCET_OpenSource
-# for t in $FILETYPES; do
-#     for f in ~/SoCET_Public/**/*$t; do
-# 	if (grep Copyright $f);
-# 	then 
-# 	    echo "Copyright found in SoCET_Public! $f"
-# 	else
-# 	    #cat licenseHeader $f > $f.new
-# 	    #mv $f.new $f
-# 	    #echo "License Header copied to $f"
-# 	    echo "Need to copy over: $f"
-# 	fi
-#     done
-# done
-
 # script to copy the headers to all the source files and header files
 # Thanks to stack exchange for bash help
 
@@ -50,7 +35,8 @@ for t in $FILETYPES; do
     for f in **/*$t; do
 	if (grep Copyright $f -q);
 	then 
-	    echo "No need to copy the License Header to $f"
+	    #echo "No need to copy the License Header to $f"
+	    :
 	else
 	    cat licenseHeader $f > $f.new
 	    mv $f.new $f
