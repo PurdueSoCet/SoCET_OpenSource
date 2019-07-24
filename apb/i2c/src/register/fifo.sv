@@ -22,6 +22,7 @@ module fp_fifo
 	input wire r_clk,
 	input wire w_clk,
 	input wire n_rst,
+  input wire clear,
 	output reg [7:0] r_data,
 	output reg full,
 	output reg empty
@@ -82,7 +83,7 @@ end
 flex_counter IX (
 	.clk(w_clk),
 	.n_rst(n_rst),
-	.clear(1'b0), 
+	.clear(clear), 
 	.count_enable(w_ena),
 	.count_out(w_ptr),
 	.rollover_val(4'd15)
@@ -92,7 +93,7 @@ flex_counter IX (
 flex_counter IX1 (
 	.clk(r_clk),
 	.n_rst(n_rst),
-	.clear(1'b0),
+	.clear(clear),
 	.count_enable(r_ena),
 	.count_out(r_ptr),
 	.rollover_val(4'd15)

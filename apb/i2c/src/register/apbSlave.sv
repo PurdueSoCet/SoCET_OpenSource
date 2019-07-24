@@ -83,6 +83,9 @@ address_decoder IX10 (
 	);
 
 // TX FIFO
+wire clear_tx;
+assign clear_tx = i2c_status[0] | i2c_status[3];
+
 apbfifo IX1 (
 	.w_data(pdata[7:0]),
 	.w_enable(tx_w_ena),
@@ -91,6 +94,7 @@ apbfifo IX1 (
 	.w_clk(pclk),
 	.n_rst(n_rst),
 	.r_data(tx_data),
+  .clear(clear_tx),
 	.full(tx_full),
 	.empty(tx_empty),
     .almost_full(tx_almost_full)
@@ -134,6 +138,7 @@ apbfifo IX3 (
 	.r_clk(pclk),
 	.w_clk(scl),
 	.n_rst(n_rst),
+  .clear(1'b0),
 	.r_data(i2c_data),
 	.full(rx_full),
 	.empty(rx_empty),

@@ -46,7 +46,7 @@ module slave_controller
 	output reg rw_store		// Read Write Store Enabler Flag
 );
 
-	typedef enum logic [4:0] {IDLE, GET_ADDR_1, CHECK_ADDR_1, NO_MATCH, ACK_SEND_1, GET_ADDR_2, CHECK_ADDR_2, ACK_SEND_2, FIFO_CHK_TX, LOAD, DATA_START, DATA_STOP, ACK_CHECK, READ_ENABLE, RE_NACK, RE_ACK, FIFO_CHK_RX, SEND_1, SEND_ACK, SEND_NACK, SEND_2} state_type;
+	typedef enum logic [4:0] {IDLE, GET_ADDR_1, CHECK_ADDR_1, NO_MATCH, ACK_SEND_1, GET_ADDR_2, CHECK_ADDR_2, ACK_SEND_2, FIFO_CHK_TX, LOAD, DATA_START, DATA_STOP, ACK_CHECK, READ_ENABLE, RE_NACK, RE_ACK, FIFO_CHK_RX, SEND_1, SEND_ACK, SEND_NACK, SEND_2, STRETCH_TX, STRETCH_LOAD, SEND_3} state_type;
 	state_type state, next_state;
 
 	reg temp_rx_enable;
@@ -90,7 +90,7 @@ module slave_controller
 	end
 	//STATE MACHINE
 	//Look at the RTL for better understanding
-	always @(state, start, stop, byte_received, ack_done, ack_check, ack_prep, address_match, SDA_sync,en_clock_strech)
+	always_comb// @(state, start, stop, byte_received, ack_done, ack_check, ack_prep, address_match, SDA_sync,en_clock_strech)
 	begin
 		next_state = state;
 		case (state)
@@ -176,17 +176,34 @@ module slave_controller
 
 			FIFO_CHK_TX:
 			begin 
-				if(en_clock_strech == 1'b1 || TX_fifo_empty == 1'b1) // Hold SCL low for clock streching
+				if(en_clock_strech == 1'b1 && TX_fifo_empty == 1'b1) // Hold SCL low for clock streching
 				begin
-					next_state = FIFO_CHK_TX;
+					next_state = STRETCH_TX;
 				end
-				else if (en_clock_strech == 1'b0 && TX_fifo_empty == 1'b0) // Begin Loading data
+				else
 				begin
 					next_state = LOAD;
 				end
 			end
 
+      STRETCH_TX:
+			begin 
+				if(en_clock_strech == 1'b1 && TX_fifo_empty == 1'b1) // Hold SCL low for clock streching
+				begin
+					next_state = STRETCH_TX;
+				end
+				else
+				begin
+					next_state = STRETCH_LOAD;
+				end
+			end
+
 			LOAD:
+			begin 
+				next_state = DATA_START; // Wait State 
+			end
+
+			STRETCH_LOAD:
 			begin 
 				next_state = DATA_START; // Wait State 
 			end
@@ -263,7 +280,7 @@ module slave_controller
 
 			FIFO_CHK_RX:
 			begin 
-				if(en_clock_strech == 1'b1) // Hold SCL line low
+				if(en_clock_strech == 1'b1 && RX_fifo_full == 1'b1) // Hold SCL line low
 				begin
 					next_state = FIFO_CHK_RX;
 				end
@@ -279,11 +296,13 @@ module slave_controller
 				begin
 					next_state = IDLE;
 				end 
-				else if(RX_fifo_almost_full == 1'b1 && ack_prep == 1'b1) 
+				else if(RX_fifo_full == 1'b1 && ack_prep == 1'b1) 
+				//else if(RX_fifo_almost_full == 1'b1 && ack_prep == 1'b1) 
 				begin
 					next_state = SEND_NACK;
 				end
-				else if(RX_fifo_almost_full == 1'b0 && ack_prep == 1'b1) 
+				else if(RX_fifo_full == 1'b0 && ack_prep == 1'b1) 
+				//else if(RX_fifo_almost_full == 1'b0 && ack_prep == 1'b1) 
 				begin
 					next_state = SEND_ACK;
 				end
@@ -311,8 +330,13 @@ module slave_controller
 				end
 				else   // Get new data and send ACK/NACK as necessary
 				begin 
-					next_state = FIFO_CHK_RX;
+					//next_state = FIFO_CHK_RX;
+					next_state = SEND_3;
 				end
+			end
+			SEND_3:
+			begin
+				next_state = FIFO_CHK_RX;
 			end
 		endcase
 	end
@@ -431,7 +455,7 @@ module slave_controller
 				temp_load_data = 1'b0;
 				temp_tx_enable = 1'b0;
 			end
-			FIFO_CHK_TX:
+			FIFO_CHK_TX, STRETCH_TX:
 			begin 
 				temp_rx_enable = 1'b0;
 				temp_SCL_out_slave = 1'b0;
@@ -451,7 +475,19 @@ module slave_controller
 				temp_TX_read_enable_slave = 1'b0;
 				temp_RX_write_enable_slave = 1'b0;
 				temp_ack_error_set_slave = 1'b0;
-				temp_sda_mode = 2'b01; //ACK
+				temp_sda_mode = 2'b00; //IDLE
+				temp_load_data = 1'b1;
+				temp_tx_enable = 1'b0;
+			end
+			STRETCH_LOAD:
+			begin 
+				temp_rx_enable = 1'b0;
+				temp_SCL_out_slave = 1'b0;
+				temp_busy_slave = 1'b1;
+				temp_TX_read_enable_slave = 1'b0;
+				temp_RX_write_enable_slave = 1'b0;
+				temp_ack_error_set_slave = 1'b0;
+				temp_sda_mode = 2'b00; // IDLE
 				temp_load_data = 1'b1;
 				temp_tx_enable = 1'b0;
 			end
@@ -508,9 +544,11 @@ module slave_controller
 				temp_rx_enable = 1'b0;
 				temp_SCL_out_slave = 1'b1;
 				temp_busy_slave = 1'b1;
-				temp_TX_read_enable_slave = 1'b0;
+				//temp_TX_read_enable_slave = 1'b0;
+        temp_TX_read_enable_slave = 1'b1;
 				temp_RX_write_enable_slave = 1'b0;
-				temp_ack_error_set_slave = 1'b1;
+				//temp_ack_error_set_slave = 1'b1;
+        temp_ack_error_set_slave = 1'b0;
 				temp_sda_mode = 2'b00;
 				temp_load_data = 1'b0;
 				temp_tx_enable = 1'b0;
@@ -582,6 +620,18 @@ module slave_controller
 				temp_busy_slave = 1'b1;
 				temp_TX_read_enable_slave = 1'b0;
 				temp_RX_write_enable_slave = 1'b1;
+				temp_ack_error_set_slave = 1'b0;
+				temp_sda_mode = 2'b00;
+				temp_load_data = 1'b0;
+				temp_tx_enable = 1'b0;
+			end
+			SEND_3:
+			begin 
+				temp_rx_enable = 1'b0;
+				temp_SCL_out_slave = 1'b0;
+				temp_busy_slave = 1'b1;
+				temp_TX_read_enable_slave = 1'b0;
+				temp_RX_write_enable_slave = 1'b0;
 				temp_ack_error_set_slave = 1'b0;
 				temp_sda_mode = 2'b00;
 				temp_load_data = 1'b0;

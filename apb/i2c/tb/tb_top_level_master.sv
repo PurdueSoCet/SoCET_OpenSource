@@ -193,13 +193,13 @@ task test4();
 	
 	@(posedge tb_interrupt);
 	APB_read_status(data);
-	assert(data==147) else
-		$error("Incorrect status, expected 147, got %d",data);
+	assert(data==1235) else
+		$error("Incorrect status, expected 1235, got %d",data);
 
 	@(posedge tb_interrupt);
 	APB_read_status(data);
-	assert(data==132) else
-		$error("Incorrect status, expected 132, got %d",data);
+	assert(data==1156) else
+		$error("Incorrect status, expected 1156, got %d",data);
 
 	assert(tb_slave_buffer[0] == 100) else
 		$error("Slave received incorrect data, expected 100, got %d",tb_slave_buffer[0]);
